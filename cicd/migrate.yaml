@@ -1,0 +1,24 @@
+version: 0.2
+
+env:
+  variables:
+    PROJ_PATH: "django/notejam"
+
+phases:
+  pre_build:
+    commands:
+      # installing aws cli
+      - pip install awscli
+      - aws --version
+      # retreving DB password from the parameter store
+      - DB_PASS=$(aws ssm get-parameter --with-decryption --query Parameter.Value --output text --region $AWS_REGION --name "$DB_PASS")
+      # installing application requirements
+      - pip install -r django/requirements.txt
+  build:
+    commands:
+      - cd $PROJ_PATH 
+      - chmod +x ./manage.py
+      # syncing the db
+      - echo "no" | ./manage.py syncdb
+      # migrations
+      - ./manage.py migrate

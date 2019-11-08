@@ -1,0 +1,38 @@
+version: 0.2
+
+env:
+  variables:
+    CICD_PATH: "cicd"
+    PROJ_PATH: "django"
+
+phases:
+  pre_build:
+    commands:
+      # retreving DB password from the parameter store
+      - DB_PASS=$(aws ssm get-parameter --with-decryption --query Parameter.Value --output text --region $AWS_REGION --name "$DB_PASS")
+  build:
+    commands:
+      # Building the docker image and passing needed parameters to the docker build
+      - docker --version
+      - |
+        docker build -f $CICD_PATH/Dockerfile -t img . \
+        --build-arg app_port=$APP_PORT \
+        --build-arg db_host=$DB_HOST \
+        --build-arg db_port=$DB_PORT \
+        --build-arg db_user=$DB_USER \
+        --build-arg db_pass=$DB_PASS 
+      #
+      # tagging docker image
+      - docker tag img $ECR:worker
+      #
+      # obtaining access and pushing docker image to the ECR
+      - $(aws ecr get-login --region ${AWS_REGION} --no-include-email)
+      - docker push $ECR:worker
+  post_build:
+    commands:
+      # generating image definition file; later to be used for deployment
+      - echo Writing image definitions file... 
+      - echo $ECR:worker
+      - printf '[{"name":"worker","imageUri":"%s"}]' $ECR:worker > image-definitions.json 
+artifacts: 
+    files: image-definitions.json 
