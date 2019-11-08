@@ -3,3 +3,4 @@ South==1.0
 mysqlclient
 gunicorn
 whitenoise==2.0.6
+requests
